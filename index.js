@@ -7,11 +7,15 @@ const port = 3000;
 const secret = 'secret';
 
 let accounts = [
-  { email: 'uudashr@gmail.com', passwod: 'secret' },
+  { email: 'uudashr@gmail.com', name: 'Nuruddin Ashr', passwod: 'secret' },
 ];
 
-let taskSequenceId = 0;
-let tasks = [];
+let taskSequenceId = 3;
+let tasks = [
+  {id: 1, name: 'Follow up SRE Suppor', completed: true, ownerId: 'uudashr@gmail.com'},
+  {id: 2, name: 'Read IAM Service Spec', ownerId: 'uudashr@gmail.com'},
+  {id: 3, name: 'Research chat protocols', ownerId: 'uudashr@gmail.com'},
+];
 
 app.use(express.json());
 app.use(cookieParser());
@@ -25,12 +29,12 @@ app.get('/dev/accounts', (req, res) => {
 });
 
 app.post('/signup', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, name, password } = req.body;
   if (accounts.find((acc) => acc.email === email)) {
     return res.status(409).send('conflict');
   }
 
-  accounts = [...accounts, { email, password }];
+  accounts = [...accounts, { email, name, password }];
   return res.status(201).send('created');
 });
 
@@ -80,9 +84,9 @@ function authChecks(req, res, next) {
 
 app.get('/tasks', authChecks, (req, res) => {
   const queryCompleted = req.query.completed;
-  const filteredTasks = tasks.filter((task) => (
-    task.ownerId == req.authenticatedId
-  )).filter((task) => {
+  const filteredTasks = tasks.filter((task) => {
+    return task.ownerId === req.authenticatedId
+  }).filter((task) => {
     if (queryCompleted === 'true') {
       return task.completed;
     }
