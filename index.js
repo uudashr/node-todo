@@ -7,7 +7,7 @@ const port = 3000;
 const secret = 'secret';
 
 let accounts = [
-  { email: 'uudashr@gmail.com', name: 'Nuruddin Ashr', passwod: 'secret' },
+  { email: 'uudashr@gmail.com', name: 'Nuruddin Ashr', password: 'secret' },
 ];
 
 let taskSequenceId = 3;
