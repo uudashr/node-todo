@@ -47,7 +47,7 @@ app.post('/register', (req, res) => {
   const { email, name, password } = req.body;
   const acc = accounts.find(acc => acc.email === email);
   if (acc) {
-    return res.status(409).json(errorPayload('conflict',  'Email already registered'));
+    return res.status(409).json(errorPayload('email_used',  'Email already used'));
   }
 
   accounts = [...accounts, { email, name, password }];
