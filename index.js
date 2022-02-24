@@ -9,7 +9,7 @@ const app = express();
 const PORT = 3500;
 const SECRET = 'secret';
 // const COOKIE_USER_FINGERPRINT = "__Secure-Fgp" // for https
-const COOKIE_USER_FINGERPRINT = "Secure-Fgp" // for http
+const COOKIE_USER_FINGERPRINT = "Fgp" // for http
 
 let accounts = [
   { email: 'uudashr@gmail.com', name: 'Nuruddin Ashr', password: 'secret' },
