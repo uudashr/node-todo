@@ -1,10 +1,15 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
 const jwt = require('jsonwebtoken');
-var cookieParser = require('cookie-parser');
+const crypto = require('crypto');
+
 const app = express();
 
-const port = 3000;
-const secret = 'secret';
+const PORT = 3500;
+const SECRET = 'secret';
+// const COOKIE_USER_FINGERPRINT = "__Secure-Fgp" // for https
+const COOKIE_USER_FINGERPRINT = "Secure-Fgp" // for http
 
 let accounts = [
   { email: 'uudashr@gmail.com', name: 'Nuruddin Ashr', password: 'secret' },
@@ -12,12 +17,16 @@ let accounts = [
 
 let taskSequenceId = 3;
 let tasks = [
-  {id: 1, name: 'Follow up SRE Suppor', completed: true, ownerId: 'uudashr@gmail.com'},
-  {id: 2, name: 'Read IAM Service Spec', ownerId: 'uudashr@gmail.com'},
-  {id: 3, name: 'Research chat protocols', ownerId: 'uudashr@gmail.com'},
+  { id: 1, name: 'Follow up SRE Support', completed: true, ownerId: 'uudashr@gmail.com' },
+  { id: 2, name: 'Read IAM Service Spec', ownerId: 'uudashr@gmail.com' },
+  { id: 3, name: 'Research chat protocols', ownerId: 'uudashr@gmail.com' },
 ];
 
 app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(cookieParser());
 
 app.get('/', (req, res) => {
@@ -28,34 +37,50 @@ app.get('/dev/accounts', (req, res) => {
   res.json(accounts);
 });
 
-app.post('/signup', async (req, res) => {
+function errorPayload(code, message) {
+  return { 
+    error: { code, message } 
+  };
+}
+
+app.post('/register', (req, res) => {
   const { email, name, password } = req.body;
-  if (accounts.find((acc) => acc.email === email)) {
-    return res.status(409).send('conflict');
+  const acc = accounts.find(acc => acc.email === email);
+  if (acc) {
+    return res.status(409).json(errorPayload('conflict',  'Email already registered'));
   }
 
   accounts = [...accounts, { email, name, password }];
   return res.status(201).send('created');
 });
 
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  const acc = accounts.find((acc) => acc.email === email && acc.passwod == password);
-  if (!acc) {
-    return res.status(404).send('not found');
+function buildTokenPayload(type) {
+  if (type === 'web') {
+    const userFingerprint = crypto.randomBytes(50).toString('hex');
+    return { userFingerprint };
   }
 
-  const userFingerprint = 'The-secure-user-fingerprint';
-  const payload = {
-    userFingerprint
-  };
-  const token = jwt.sign(payload, secret, {
+  return {};
+}
+
+app.post('/authenticate', (req, res) => {
+  const { email, password, type } = req.body;
+
+  const acc = accounts.find(acc => acc.email === email && acc.password === password);
+  if (!acc) {
+    return res.status(401).json(errorPayload('invalid_credentials', 'Invalid username or password'));
+  }
+
+  const payload = buildTokenPayload(type);
+  const token = jwt.sign(payload, SECRET, {
     subject: acc.email,
     expiresIn: '60m'
   });
 
-  res.cookie('__Secure-Fgp', userFingerprint, {httpOnly: true, sameSite: 'strict'});
+  if (payload.userFingerprint) {
+    // res.cookie(COOKIE_USER_FINGERPRINT, payload.userFingerprint, { sameSite: 'strict', httpOnly: true, secure: true });
+    res.cookie(COOKIE_USER_FINGERPRINT, payload.userFingerprint, { sameSite: 'strict', httpOnly: true });
+  }
 
   return res.status(201).json({ token });
 });
@@ -68,25 +93,35 @@ function authChecks(req, res, next) {
 
   const accessToken = authHeader.substring('Bearer '.length)
   try {
-    const payload = jwt.verify(accessToken, secret);
-    // res.json({accessToken, payload});
-    req.authenticatedId = payload.subject;
+    const payload = jwt.verify(accessToken, SECRET);
 
-    // For web/cookie enabled only
-    // if (!req.cookies['___Secure-Fgp'] === payload.userFingerprint) {
-    //   return res.status(401).send('unauthorized');
-    // }
+    if (payload.userFingerprint && (payload.userFingerprint !== req.cookies[COOKIE_USER_FINGERPRINT])) {
+      return res.status(401).send('unauthorized');
+    }
+
+    req.authenticatedId = payload.sub;
+
     next();
   } catch (e) {
     return res.status(401).send(e.message);
   }
 }
 
+app.get('/userinfo', authChecks, (req, res) => {
+  const acc = accounts.find(acc => acc.email === req.authenticatedId)
+  if (!acc) {
+    return res.status(404).send('not found');
+  }
+
+  const { email, name } = acc;
+  res.json({ email, name });
+});
+
 app.get('/tasks', authChecks, (req, res) => {
   const queryCompleted = req.query.completed;
-  const filteredTasks = tasks.filter((task) => {
+  const filteredTasks = tasks.filter(task => {
     return task.ownerId === req.authenticatedId
-  }).filter((task) => {
+  }).filter(task => {
     if (queryCompleted === 'true') {
       return task.completed;
     }
@@ -97,7 +132,7 @@ app.get('/tasks', authChecks, (req, res) => {
     }
 
     return true;
-  }).map(({id, name, completed}) => ({id, name, completed}));
+  }).map(({ id, name, completed }) => ({ id, name, completed }));
 
   res.json(filteredTasks);
 });
@@ -110,8 +145,9 @@ app.post('/tasks', authChecks, (req, res) => {
 });
 
 app.put('/tasks/:id', authChecks, (req, res) => {
-  const {id, name, completed} = tasks.find((task) => (
-    task.id === id.toString() &&
+  const paramId = req.params.id;
+  const {id, name, completed} = tasks.find(task => (
+    task.id === Number(paramId) &&
     task.ownerId === req.authenticatedId
   ));
 
@@ -119,12 +155,20 @@ app.put('/tasks/:id', authChecks, (req, res) => {
     return res.status(404).send('not found');
   }
 
-  return res.json({id, name, completed});
+  tasks = tasks.map(task => {
+    if (task.id == id) {
+      return {...task, name, completed}
+    }
+
+    return task
+  })
+
+  return res.status(204).send('no content');
 });
 
 app.put('/tasks/:id/completed', authChecks, (req, res) => {
   const paramId = req.params.id;
-  const task = tasks.find((task) => (
+  const task = tasks.find(task => (
     task.id === Number(paramId) && task.ownerId === req.authenticatedId
   ));
   if (!task) {
@@ -132,9 +176,9 @@ app.put('/tasks/:id/completed', authChecks, (req, res) => {
   }
 
 
-  tasks = tasks.map((task) => {
+  tasks = tasks.map(task => {
     if (task.id === Number(paramId)) {
-      return {...task, completed: true};
+      return  {...task, completed: true };
     }
 
     return task;
@@ -144,16 +188,16 @@ app.put('/tasks/:id/completed', authChecks, (req, res) => {
 
 app.delete('/tasks/:id/completed', authChecks, (req, res) => {
   const paramId = req.params.id;
-  const task = tasks.find((task) => (
+  const task = tasks.find(task => (
     task.id === Number(paramId) && task.ownerId === req.authenticatedId
   ));
   if (!task) {
     return req.status(404).send('not found');
   }
 
-  tasks = tasks.map((task) => {
+  tasks = tasks.map(task => {
     if (task.id === Number(paramId)) {
-      const {completed, ...taskRest} = task;
+      const { completed, ...taskRest } = task;
       return taskRest;
     }
 
@@ -162,6 +206,6 @@ app.delete('/tasks/:id/completed', authChecks, (req, res) => {
   return res.status(204).send('no content');
 });
 
-app.listen(port, () => {
-  console.log(`Node Todo listening on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Node Todo listening on port ${PORT}`);
 });
