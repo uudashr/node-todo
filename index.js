@@ -23,6 +23,7 @@ let tasks = [
 ];
 
 app.use(express.json());
+app.use(express.text());
 app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true
@@ -179,6 +180,30 @@ app.delete('/tasks/:id', authChecks, (req, res) => {
   }
 
   tasks = tasks.filter(task => task.id !== found.id);
+  return res.status(204).send('no content');
+});
+
+app.put('/tasks/:id/name', authChecks, (req, res) => {
+  const paramId = req.params.id;
+  const nameValue = req.body;
+  if (!nameValue) {
+    return res.status(400).json(errorPayload('empty_name', 'Name is empty'));
+  }
+
+  const found = tasks.find(task => (
+    task.id === Number(paramId) && task.ownerId === req.authenticatedId
+  ));
+  if (!found) {
+    return req.status(404).send('not found');
+  }
+
+  tasks = tasks.map(task => {
+    if (task.id === found.id) {
+      return  { ...task, name: nameValue };
+    }
+
+    return task;
+  })
   return res.status(204).send('no content');
 });
 
