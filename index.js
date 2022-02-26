@@ -147,6 +147,21 @@ app.post('/tasks', authChecks, (req, res) => {
   res.status(201).send('created');
 });
 
+app.get('/tasks/:id', authChecks, (req, res) => {
+  const paramId = req.params.id;
+  const found = tasks.find(task => (
+    task.id === Number(paramId) &&
+    task.ownerId === req.authenticatedId
+  ));
+
+  if (!found) {
+    return res.status(404).send('not found');
+  }
+
+  const { id, name, completed } = found;
+  return res.json({ id, name, completed });
+});
+
 app.put('/tasks/:id', authChecks, (req, res) => {
   const paramId = req.params.id;
   const found = tasks.find(task => (
