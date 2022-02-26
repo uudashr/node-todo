@@ -102,9 +102,7 @@ function authChecks(req, res, next) {
 
     req.authenticatedId = payload.sub;
 
-    setTimeout(() => {
-      next();
-    }, 500);
+    next();
   } catch (e) {
     return res.status(401).send(e.message);
   }
