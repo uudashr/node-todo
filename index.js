@@ -29,6 +29,13 @@ app.use(cors({
   credentials: true
 }));
 app.use(cookieParser());
+app.use(delay(500));
+
+function delay(ms) {
+  return (req, res, next) => {
+    setTimeout(() => next(), ms);
+  };
+}
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
