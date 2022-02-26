@@ -25,7 +25,7 @@ let tasks = [
 app.use(express.json());
 app.use(express.text());
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: true,
   credentials: true
 }));
 app.use(cookieParser());
@@ -102,7 +102,9 @@ function authChecks(req, res, next) {
 
     req.authenticatedId = payload.sub;
 
-    next();
+    setTimeout(() => {
+      next();
+    }, 500);
   } catch (e) {
     return res.status(401).send(e.message);
   }
