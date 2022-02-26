@@ -186,9 +186,9 @@ app.put('/tasks/:id', authChecks, (req, res) => {
 app.delete('/tasks/:id', authChecks, (req, res) => {
   const paramId = req.params.id;
   const found = tasks.find(task => (
-    task.id === Number(paramId) && 
+    task.id === paramId && 
     task.ownerId === req.authenticatedId
-  ))
+  ));
 
   if (!found) {
     return res.status(404).send('not found');
@@ -206,7 +206,7 @@ app.put('/tasks/:id/name', authChecks, (req, res) => {
   }
 
   const found = tasks.find(task => (
-    task.id === Number(paramId) && task.ownerId === req.authenticatedId
+    task.id === paramId && task.ownerId === req.authenticatedId
   ));
   if (!found) {
     return req.status(404).send('not found');
@@ -225,7 +225,7 @@ app.put('/tasks/:id/name', authChecks, (req, res) => {
 app.put('/tasks/:id/completed', authChecks, (req, res) => {
   const paramId = req.params.id;
   const found = tasks.find(task => (
-    task.id === Number(paramId) && task.ownerId === req.authenticatedId
+    task.id === paramId && task.ownerId === req.authenticatedId
   ));
   if (!found) {
     return req.status(404).send('not found');
@@ -234,7 +234,7 @@ app.put('/tasks/:id/completed', authChecks, (req, res) => {
 
   tasks = tasks.map(task => {
     if (task.id === found.id) {
-      return  { ...task, completed: true };
+      return  { ...task, completed };
     }
 
     return task;
