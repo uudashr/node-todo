@@ -216,7 +216,7 @@ app.put('/tasks/:id/name', authChecks, (req, res) => {
     task.id === Number(paramId) && task.ownerId === req.authenticatedId
   ));
   if (!found) {
-    return req.status(404).send('not found');
+    return res.status(404).send('not found');
   }
 
   tasks = tasks.map(task => {
@@ -255,7 +255,7 @@ app.delete('/tasks/:id/completed', authChecks, (req, res) => {
     task.id === Number(paramId) && task.ownerId === req.authenticatedId
   ));
   if (!found) {
-    return req.status(404).send('not found');
+    return res.status(404).send('not found');
   }
 
   tasks = tasks.map(task => {
